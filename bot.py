@@ -11,7 +11,7 @@ from openai import OpenAI
 
 # Initialize the OpenAI client
 client = OpenAI(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)
-CHANNEL_ID = -1001234567890  # Replace with your actual channel ID
+CHANNEL_ID = -1003761357687  # Replace with your actual channel ID
 
 # Admin control still exists for user management, but guide creation is now public
 ADMIN_ID = 123456789           # Your Telegram ID (admin)
@@ -209,6 +209,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
