@@ -24,7 +24,7 @@ def generate_guide(title: str):
     prompt = f"Write a clear, step-by-step IT guide for: {title}. Include numbered steps."
     # Gemini 2.0 Flash is the best free-tier model for 2026
     response = client.models.generate_content(
-        model='gemini-2.0-flash', 
+        model='gemini-1.5-flash', 
         contents=prompt
     )
     return response.text
@@ -87,3 +87,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
