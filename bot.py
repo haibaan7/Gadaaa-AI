@@ -7,7 +7,7 @@ import openai
 # ===================== SETTINGS =====================
 # WARNING: Keep these tokens secret! Consider using environment variables.
 BOT_TOKEN = "8304164199:AAE3YgLXsdw61IR_U6QgzRih_dyLPp7Txtg"
-OPENAI_KEY = "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"
+OPENAI_KEY = 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
 CHANNEL_ID = -1001234567890  # Replace with your actual channel ID
 
 # Admin control still exists for user management, but guide creation is now public
@@ -203,4 +203,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
