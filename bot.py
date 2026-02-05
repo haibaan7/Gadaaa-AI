@@ -5,15 +5,16 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 import openai
 
 # ===================== SETTINGS =====================
+# WARNING: Keep these tokens secret! Consider using environment variables.
 BOT_TOKEN = "8304164199:AAE3YgLXsdw61IR_U6QgzRih_dyLPp7Txtg"
 OPENAI_KEY = "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"
-CHANNEL_ID = -1001234567890  # Replace with your channel ID
+CHANNEL_ID = -1001234567890  # Replace with your actual channel ID
 
-# Users
+# Admin control still exists for user management, but guide creation is now public
 ADMIN_ID = 123456789           # Your Telegram ID (admin)
-STAFF_IDS = [123456789]        # Add allowed staff IDs here
+STAFF_IDS = [123456789]        # List of staff (if needed for other restricted features)
 
-# Database (simple in-memory; later can use SQLite or MongoDB)
+# Database (simple in-memory)
 GUIDES_DB = {}  # key: guide_title, value: dict with text, images
 
 openai.api_key = OPENAI_KEY
@@ -35,23 +36,20 @@ def generate_guide(title: str):
 
 # ===================== COMMANDS =====================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Welcome to IT Knowledge AI Bot! Send a guide request or type /help for commands.")
+    await update.message.reply_text("Welcome to IT Knowledge AI Bot! Anyone can now create guides. Send a guide request or type /help for commands.")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "/guide <title> - Create new guide\n"
+        "/guide <title> - Create new guide (Available to all)\n"
         "/search <keyword> - Search existing guides\n"
         "/adduser <telegram_id> - Admin only\n"
         "/removeuser <telegram_id> - Admin only"
     )
 
-# ===================== STAFF GUIDE CREATION =====================
+# ===================== GUIDE CREATION (OPEN TO ALL) =====================
 async def create_guide(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
-    if user_id not in STAFF_IDS and user_id != ADMIN_ID:
-        await update.message.reply_text("❌ You are not allowed to create guides.")
-        return
-
+    
     args = context.args
     if not args:
         await update.message.reply_text("Usage: /guide <guide title>")
@@ -60,25 +58,28 @@ async def create_guide(update: Update, context: ContextTypes.DEFAULT_TYPE):
     title = " ".join(args)
     await update.message.reply_text(f"✍️ Generating guide for: {title}...")
 
-    guide_text = generate_guide(title)
+    try:
+        guide_text = generate_guide(title)
 
-    # Save in temporary draft
-    GUIDES_DB[title] = {"text": guide_text, "images": [], "approved": False, "creator": user_id}
+        # Save in temporary draft
+        GUIDES_DB[title] = {"text": guide_text, "images": [], "approved": False, "creator": user_id}
 
-    # Send preview to staff
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("Approve & Post ✅", callback_data=f"approve|{title}")],
-        [InlineKeyboardButton("Edit ✏️", callback_data=f"edit|{title}")],
-        [InlineKeyboardButton("Add Image 🖼️", callback_data=f"image|{title}")],
-        [InlineKeyboardButton("Cancel ❌", callback_data=f"cancel|{title}")]
-    ])
-    await update.message.reply_text(f"📝 *Guide Draft: {title}*\n\n{guide_text}", parse_mode='Markdown', reply_markup=keyboard)
+        # Send preview to the user
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("Approve & Post ✅", callback_data=f"approve|{title}")],
+            [InlineKeyboardButton("Edit ✏️", callback_data=f"edit|{title}")],
+            [InlineKeyboardButton("Add Image 🖼️", callback_data=f"image|{title}")],
+            [InlineKeyboardButton("Cancel ❌", callback_data=f"cancel|{title}")]
+        ])
+        await update.message.reply_text(f"📝 *Guide Draft: {title}*\n\n{guide_text}", parse_mode='Markdown', reply_markup=keyboard)
+    except Exception as e:
+        logger.error(f"Error generating guide: {e}")
+        await update.message.reply_text("❌ Failed to generate guide. Please check the API configuration.")
 
 # ===================== INLINE BUTTON CALLBACK =====================
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    user_id = query.from_user.id
     data = query.data
     action, title = data.split("|", 1)
 
@@ -96,39 +97,43 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if guide["images"]:
             media = [InputMediaPhoto(media=img) for img in guide["images"]]
             await context.bot.send_media_group(chat_id=CHANNEL_ID, media=media)
-        await query.edit_message_text(f"✅ Guide '{title}' approved and posted.")
+        await query.edit_message_text(f"✅ Guide '{title}' approved and posted to the channel.")
+        
     elif action == "edit":
         await query.edit_message_text(f"✏️ Send new text to replace guide '{title}'.")
         context.user_data["edit_title"] = title
+        
     elif action == "image":
         await query.edit_message_text(f"🖼️ Send image(s) to attach to guide '{title}'.")
         context.user_data["image_title"] = title
+        
     elif action == "cancel":
         del GUIDES_DB[title]
         await query.edit_message_text(f"❌ Guide '{title}' cancelled.")
 
 # ===================== RECEIVE TEXT (FOR EDITING) =====================
 async def receive_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.message.from_user.id
-
-    # Editing guide
     if "edit_title" in context.user_data:
         title = context.user_data.pop("edit_title")
         if title in GUIDES_DB:
             GUIDES_DB[title]["text"] = update.message.text
-            await update.message.reply_text(f"✏️ Guide '{title}' updated. Click Approve to post.")
-        return
+            
+            # Show updated preview with buttons again
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("Approve & Post ✅", callback_data=f"approve|{title}")],
+                [InlineKeyboardButton("Add Image 🖼️", callback_data=f"image|{title}")],
+                [InlineKeyboardButton("Cancel ❌", callback_data=f"cancel|{title}")]
+            ])
+            await update.message.reply_text(f"✏️ Guide '{title}' updated.\n\n{update.message.text}", parse_mode='Markdown', reply_markup=keyboard)
 
 # ===================== RECEIVE IMAGE =====================
 async def receive_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.message.from_user.id
-
     if "image_title" in context.user_data:
         title = context.user_data["image_title"]
         if title in GUIDES_DB:
             photo_file = update.message.photo[-1].file_id
             GUIDES_DB[title]["images"].append(photo_file)
-            await update.message.reply_text(f"🖼️ Image added to guide '{title}'. Click Approve to post.")
+            await update.message.reply_text(f"🖼️ Image added to guide '{title}'. You can send more or click Approve.")
 
 # ===================== SEARCH EXISTING GUIDES =====================
 async def search_guide(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -141,7 +146,7 @@ async def search_guide(update: Update, context: ContextTypes.DEFAULT_TYPE):
     results = [title for title in GUIDES_DB if keyword in title.lower()]
 
     if not results:
-        await update.message.reply_text("❌ No guides found.")
+        await update.message.reply_text("❌ No guides found in current session.")
         return
 
     reply = "🔎 Found guides:\n" + "\n".join(results)
@@ -150,7 +155,7 @@ async def search_guide(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ===================== ADMIN USER MANAGEMENT =====================
 async def add_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.from_user.id != ADMIN_ID:
-        await update.message.reply_text("❌ Only admin can add users.")
+        await update.message.reply_text("❌ Only admin can use this command.")
         return
     if not context.args:
         await update.message.reply_text("Usage: /adduser <telegram_id>")
@@ -160,12 +165,12 @@ async def add_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if new_user not in STAFF_IDS:
             STAFF_IDS.append(new_user)
         await update.message.reply_text(f"✅ Added user {new_user}")
-    except:
+    except ValueError:
         await update.message.reply_text("❌ Invalid Telegram ID.")
 
 async def remove_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.from_user.id != ADMIN_ID:
-        await update.message.reply_text("❌ Only admin can remove users.")
+        await update.message.reply_text("❌ Only admin can use this command.")
         return
     if not context.args:
         await update.message.reply_text("Usage: /removeuser <telegram_id>")
@@ -175,7 +180,7 @@ async def remove_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if user in STAFF_IDS:
             STAFF_IDS.remove(user)
         await update.message.reply_text(f"✅ Removed user {user}")
-    except:
+    except ValueError:
         await update.message.reply_text("❌ Invalid Telegram ID.")
 
 # ===================== MAIN FUNCTION =====================
@@ -198,5 +203,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
