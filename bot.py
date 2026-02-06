@@ -2,11 +2,13 @@ import os
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes
-import openai
+
+import groq
 
 # ===================== SETTINGS =====================
+
 BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
-OPENAI_KEY = "YOUR_OPENAI_KEY"
+GROQ_KEY = "YOUR_GROQ_KEY"
 CHANNEL_ID = -1001234567890  # Replace with your channel ID
 
 # Users
@@ -16,7 +18,8 @@ STAFF_IDS = [123456789]        # Add allowed staff IDs here
 # Database (simple in-memory; later can use SQLite or MongoDB)
 GUIDES_DB = {}  # key: guide_title, value: dict with text, images
 
-openai.api_key = OPENAI_KEY
+
+groq_client = groq.Client(api_key=GROQ_KEY)
 
 # Logging
 logging.basicConfig(
@@ -27,9 +30,9 @@ logger = logging.getLogger(__name__)
 # ===================== AI GUIDE GENERATOR =====================
 def generate_guide(title: str):
     prompt = f"Write a clear, step-by-step IT guide for: {title}. Include numbered steps, simple language, and make it easy for staff to follow."
-    response = openai.ChatCompletion.create(
-        model="gpt-4o-mini",
-        messages=[{"role":"user","content":prompt}]
+    response = groq_client.chat.completions.create(
+        model="llama3-8b-8192",
+        messages=[{"role": "user", "content": prompt}]
     )
     return response.choices[0].message.content
 
