@@ -57,7 +57,10 @@ def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("guide", create_guide))
     app.add_handler(CallbackQueryHandler(button_callback))
+    # This clears the conflict by telling Telegram to reset your session
+    app.bot.delete_webhook(drop_pending_updates=True)
     app.run_polling()
 
 if __name__ == "__main__":
     main()
+
