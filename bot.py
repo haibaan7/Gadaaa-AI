@@ -54,7 +54,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(f"✅ Posted to channel!")
 
 def main():
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app = ApplicationBuilder().token(BOT_TOKEN).post_init(on_startup).build()
     app.add_handler(CommandHandler("guide", create_guide))
     app.add_handler(CallbackQueryHandler(button_callback))
     # This clears the conflict by telling Telegram to reset your session
@@ -63,4 +63,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
