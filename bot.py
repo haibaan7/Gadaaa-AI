@@ -52,7 +52,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def create_guide(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     # Anyone with bot access can create guides
-        return
 
     args = context.args
     if not args:
@@ -204,4 +203,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
