@@ -7,9 +7,9 @@ import groq
 
 # ===================== SETTINGS =====================
 
-BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
-GROQ_KEY = "YOUR_GROQ_KEY"
-CHANNEL_ID = -1001234567890  # Replace with your channel ID
+BOT_TOKEN = "8304164199:AAE3YgLXsdw61IR_U6QgzRih_dyLPp7Txtg"
+GROQ_KEY = "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"
+CHANNEL_ID = -1003761357687  # Replace with your channel ID
 
 # Users
 ADMIN_ID = 123456789           # Your Telegram ID (admin)
