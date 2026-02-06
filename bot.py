@@ -51,8 +51,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ===================== STAFF GUIDE CREATION =====================
 async def create_guide(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
-    if user_id not in STAFF_IDS and user_id != ADMIN_ID:
-        await update.message.reply_text("❌ You are not allowed to create guides.")
+    # Anyone with bot access can create guides
         return
 
     args = context.args
@@ -205,3 +204,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
