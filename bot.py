@@ -193,7 +193,7 @@ def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
-        app.add_handler(CommandHandler("guide", generate_guide))
+    app.add_handler(CommandHandler("guide", create_guide))
     app.add_handler(CommandHandler("search", search_guide))
     app.add_handler(CommandHandler("adduser", add_user))
     app.add_handler(CommandHandler("removeuser", remove_user))
@@ -207,4 +207,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
