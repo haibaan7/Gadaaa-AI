@@ -57,8 +57,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 # ===================== STAFF GUIDE CREATION =====================
-es
-
     args = context.args
     if not args:
         await update.message.reply_text("Usage: /guide <guide title>")
