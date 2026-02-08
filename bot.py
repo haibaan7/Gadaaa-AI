@@ -30,11 +30,19 @@ logger = logging.getLogger(__name__)
 # ===================== AI GUIDE GENERATOR =====================
 def generate_guide(title: str):
     prompt = f"Write a clear, step-by-step IT guide for: {title}. Include numbered steps, simple language, and make it easy for staff to follow."
-    response = groq_client.chat.completions.create(
-        model="llama3-8b-8192",
-        messages=[{"role": "user", "content": prompt}]
-    )
-    return response.choices[0].message.content
+    try:
+        response = groq_client.chat.completions.create(
+            model="llama3-8b-8192",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        guide = response.choices[0].message.content
+        if not guide:
+            logger.error(f"Groq API returned empty content for title: {title}")
+            return "❌ Failed to generate guide. Please try again later."
+        return guide
+    except Exception as e:
+        logger.error(f"Groq API error: {e}")
+        return "❌ Error generating guide. Please try again later."
 
 # ===================== COMMANDS =====================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -49,9 +57,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 # ===================== STAFF GUIDE CREATION =====================
-async def create_guide(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.message.from_user.id
-    # Anyone with bot access can create guides
+es
 
     args = context.args
     if not args:
@@ -203,5 +209,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
