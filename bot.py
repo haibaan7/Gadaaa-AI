@@ -5,12 +5,7 @@ from html import escape
 from typing import Dict
 
 import groq
-from telegram import (
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-    InputMediaPhoto,
-    Update,
-)
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, Update
 from telegram.ext import (
     ApplicationBuilder,
     CallbackQueryHandler,
@@ -22,10 +17,9 @@ from telegram.ext import (
 
 # ===================== SETTINGS =====================
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-GROQ_KEY = os.getenv("GROQ_KEY")
-CHANNEL_ID = os.getenv("CHANNEL_ID")
-STAFF_IDS = os.getenv("STAFF_IDS")
+BOT_TOKEN = os.getenv("8304164199:AAE3YgLXsdw61IR_U6QgzRih_dyLPp7Txtg")
+GROQ_KEY = os.getenv("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")
+CHANNEL_ID = os.getenv("-1003761357687")
 
 if not BOT_TOKEN:
     raise RuntimeError("Missing BOT_TOKEN environment variable")
@@ -33,21 +27,18 @@ if not GROQ_KEY:
     raise RuntimeError("Missing GROQ_KEY environment variable")
 if not CHANNEL_ID:
     raise RuntimeError("Missing CHANNEL_ID environment variable")
-if not STAFF_IDS:
-    raise RuntimeError("Missing STAFF_IDS environment variable")
 
 CHANNEL_ID_INT = int(CHANNEL_ID)
-ALLOWED_STAFF_IDS = {int(x.strip()) for x in STAFF_IDS.split(",") if x.strip()}
 
-# In-memory drafts: title -> data
+# Database (simple in-memory)
 GUIDES_DB: Dict[str, Dict] = {}
 
-# Groq client
 groq_client = groq.Client(api_key=GROQ_KEY)
 
 # Logging
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
 )
 logger = logging.getLogger(__name__)
 
@@ -88,11 +79,6 @@ async def generate_guide(title: str) -> str:
 # ===================== ACCESS CONTROL =====================
 
 
-def _is_allowed_user(update: Update) -> bool:
-    user = update.effective_user
-    return bool(user and user.id in ALLOWED_STAFF_IDS)
-
-
 def _is_private_chat(update: Update) -> bool:
     chat = update.effective_chat
     return bool(chat and chat.type == "private")
@@ -100,10 +86,6 @@ def _is_private_chat(update: Update) -> bool:
 
 async def _reject_if_not_allowed(update: Update) -> bool:
     if not _is_private_chat(update):
-        return True
-    if not _is_allowed_user(update):
-        if update.message:
-            await update.message.reply_text("Access denied.")
         return True
     return False
 
@@ -114,7 +96,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await _reject_if_not_allowed(update):
         return
     await update.message.reply_text(
-        "Welcome to the IT Knowledge Bot. Use /guide <topic> to generate a guide."
+        "Welcome to IT Knowledge AI Bot! Use /guide <topic> to generate a guide."
     )
 
 
@@ -122,7 +104,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await _reject_if_not_allowed(update):
         return
     await update.message.reply_text(
-        "/guide <topic> - Create a new guide\n"
+        "/guide <title> - Create new guide\n"
         "/search <keyword> - Search existing guides"
     )
 
@@ -153,10 +135,10 @@ async def create_guide(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("Approve & Post", callback_data=f"approve|{title}")],
-            [InlineKeyboardButton("Edit", callback_data=f"edit|{title}")],
-            [InlineKeyboardButton("Add Image", callback_data=f"image|{title}")],
-            [InlineKeyboardButton("Cancel", callback_data=f"cancel|{title}")],
+            [InlineKeyboardButton("Approve & Post ✅", callback_data=f"approve|{title}")],
+            [InlineKeyboardButton("Edit ✏️", callback_data=f"edit|{title}")],
+            [InlineKeyboardButton("Add Image 🖼️", callback_data=f"image|{title}")],
+            [InlineKeyboardButton("Cancel ❌", callback_data=f"cancel|{title}")],
         ]
     )
 
@@ -208,15 +190,11 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif action == "edit":
         context.user_data["edit_title"] = title
-        await query.edit_message_text(
-            f"Send the new text to replace guide '{title}'."
-        )
+        await query.edit_message_text(f"Send new text to replace guide '{title}'.")
 
     elif action == "image":
         context.user_data["image_title"] = title
-        await query.edit_message_text(
-            f"Send image(s) to attach to guide '{title}'."
-        )
+        await query.edit_message_text(f"Send image(s) to attach to guide '{title}'.")
 
     elif action == "cancel":
         GUIDES_DB.pop(title, None)
