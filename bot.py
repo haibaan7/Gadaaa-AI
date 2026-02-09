@@ -17,9 +17,9 @@ from telegram.ext import (
 
 # ===================== SETTINGS =====================
 
-BOT_TOKEN = os.getenv("8304164199:AAE3YgLXsdw61IR_U6QgzRih_dyLPp7Txtg")
-GROQ_KEY = os.getenv("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")
-CHANNEL_ID = os.getenv("-1003761357687")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+GROQ_KEY = os.getenv("GROQ_KEY")
+CHANNEL_ID = os.getenv("CHANNEL_ID")
 
 if not BOT_TOKEN:
     raise RuntimeError("Missing BOT_TOKEN environment variable")
