@@ -58,7 +58,7 @@ def _build_prompt(title: str) -> str:
 def _generate_guide_sync(title: str) -> str:
     prompt = _build_prompt(title)
     response = groq_client.chat.completions.create(
-        model="llama3-8b-8192",
+        model="mixtral-8x7b-32768",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.4,
     )
