@@ -33,12 +33,12 @@ CHANNEL_ID_INT = int(CHANNEL_ID)
 # Database (simple in-memory)
 GUIDES_DB: Dict[str, Dict] = {}
 
-# Hugging Face API settings
-HF_API_URL = "https://api-inference.huggingface.co/models/meta-llama/Meta-Llama-3.1-8B-Instruct"
+# Hugging Face API settings (2026 Router)
+HF_API_URL = "https://router.huggingface.co/hf-inference/models/meta-llama/Llama-3.3-70B-Instruct"
 HF_HEADERS = {
     "Authorization": f"Bearer {HF_TOKEN}",
-    "X-Wait-For-Model": "true",
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
+    "X-Wait-For-Model": "true"
 }
 
 # Logging
@@ -62,33 +62,39 @@ def _build_prompt(title: str) -> str:
 
 
 def _generate_guide_sync(title: str) -> str:
-    prompt = f"<s>[INST] {_build_prompt(title)} [/INST]"
+    prompt = _build_prompt(title)
     payload = {
-        "inputs": prompt,
+        "model": "meta-llama/Llama-3.3-70B-Instruct",
+        "messages": [
+            {"role": "system", "content": "You are a professional IT support specialist."},
+            {"role": "user", "content": prompt}
+        ],
         "parameters": {
-            "max_new_tokens": 800,
-            "temperature": 0.5,
-            "top_p": 0.9,
-            "do_sample": True
+            "max_new_tokens": 1000,
+            "temperature": 0.4
         }
     }
     
     try:
         response = requests.post(HF_API_URL, headers=HF_HEADERS, json=payload, timeout=60)
         
-        if response.status_code == 503:
-            return "Model is still loading on Hugging Face. Please try again in 30 seconds."
-            
-        if response.status_code != 200:
-            logger.error(f"HF Error {response.status_code}: {response.text}")
-            return f"API Error: {response.status_code}. The model might be busy."
-
-        result = response.json()
+        if response.status_code == 410:
+            return "Critical Error: The API endpoint is retired. Please update to router.huggingface.co."
         
-        if isinstance(result, list) and len(result) > 0:
-            return result[0].get("generated_text", "Empty response from AI.")
-        return "Unexpected AI response format."
-
+        if response.status_code != 200:
+            logger.error("Hugging Face API error: %s - %s", response.status_code, response.text)
+            return f"Failed to generate guide (Error {response.status_code})."
+        
+        result = response.json()
+        try:
+            if "choices" in result:
+                return result["choices"][0]["message"]["content"]
+            elif isinstance(result, list):
+                return result[0].get("generated_text", "")
+            return result.get("generated_text", "Format error")
+        except Exception:
+            return "Error parsing AI response."
+    
     except requests.exceptions.Timeout:
         return "The AI took too long to respond. Please try a shorter title."
 
