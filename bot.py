@@ -34,8 +34,12 @@ CHANNEL_ID_INT = int(CHANNEL_ID)
 GUIDES_DB: Dict[str, Dict] = {}
 
 # Hugging Face API settings
-HF_API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
-HF_HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"}
+HF_API_URL = "https://api-inference.huggingface.co/models/meta-llama/Meta-Llama-3.1-8B-Instruct"
+HF_HEADERS = {
+    "Authorization": f"Bearer {HF_TOKEN}",
+    "X-Wait-For-Model": "true",
+    "Content-Type": "application/json"
+}
 
 # Logging
 logging.basicConfig(
@@ -58,32 +62,35 @@ def _build_prompt(title: str) -> str:
 
 
 def _generate_guide_sync(title: str) -> str:
-    prompt = _build_prompt(title)
+    prompt = f"<s>[INST] {_build_prompt(title)} [/INST]"
     payload = {
         "inputs": prompt,
         "parameters": {
-            "max_new_tokens": 1000,
-            "temperature": 0.4,
-            "return_full_text": False
+            "max_new_tokens": 800,
+            "temperature": 0.5,
+            "top_p": 0.9,
+            "do_sample": True
         }
     }
-    response = requests.post(HF_API_URL, headers=HF_HEADERS, json=payload, timeout=60)
-    if response.status_code != 200:
-        logger.error("Hugging Face API error: %s - %s", response.status_code, response.text)
-        return "Failed to generate guide. Please try again later."
     
-    result = response.json()
-    if isinstance(result, list) and len(result) > 0:
-        content = result[0].get("generated_text", "")
-    elif isinstance(result, dict):
-        content = result.get("generated_text", "")
-    else:
-        content = ""
-    
-    if not content:
-        logger.error("Hugging Face API returned empty content for title: %s", title)
-        return "Failed to generate guide. Please try again later."
-    return content
+    try:
+        response = requests.post(HF_API_URL, headers=HF_HEADERS, json=payload, timeout=60)
+        
+        if response.status_code == 503:
+            return "Model is still loading on Hugging Face. Please try again in 30 seconds."
+            
+        if response.status_code != 200:
+            logger.error(f"HF Error {response.status_code}: {response.text}")
+            return f"API Error: {response.status_code}. The model might be busy."
+
+        result = response.json()
+        
+        if isinstance(result, list) and len(result) > 0:
+            return result[0].get("generated_text", "Empty response from AI.")
+        return "Unexpected AI response format."
+
+    except requests.exceptions.Timeout:
+        return "The AI took too long to respond. Please try a shorter title."
 
 
 async def generate_guide(title: str) -> str:
