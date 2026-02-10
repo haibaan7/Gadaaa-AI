@@ -4,7 +4,7 @@ import os
 from html import escape
 from typing import Dict
 
-import groq
+import requests
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -18,13 +18,13 @@ from telegram.ext import (
 # ===================== SETTINGS =====================
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-GROQ_KEY = os.getenv("GROQ_KEY")
+HF_TOKEN = os.getenv("HF_TOKEN")
 CHANNEL_ID = os.getenv("CHANNEL_ID")
 
 if not BOT_TOKEN:
     raise RuntimeError("Missing BOT_TOKEN environment variable")
-if not GROQ_KEY:
-    raise RuntimeError("Missing GROQ_KEY environment variable")
+if not HF_TOKEN:
+    raise RuntimeError("Missing HF_TOKEN environment variable")
 if not CHANNEL_ID:
     raise RuntimeError("Missing CHANNEL_ID environment variable")
 
@@ -33,7 +33,9 @@ CHANNEL_ID_INT = int(CHANNEL_ID)
 # Database (simple in-memory)
 GUIDES_DB: Dict[str, Dict] = {}
 
-groq_client = groq.Client(api_key=GROQ_KEY)
+# Hugging Face API settings
+HF_API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
+HF_HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"}
 
 # Logging
 logging.basicConfig(
@@ -57,14 +59,29 @@ def _build_prompt(title: str) -> str:
 
 def _generate_guide_sync(title: str) -> str:
     prompt = _build_prompt(title)
-    response = groq_client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.4,
-    )
-    content = response.choices[0].message.content
+    payload = {
+        "inputs": prompt,
+        "parameters": {
+            "max_new_tokens": 1000,
+            "temperature": 0.4,
+            "return_full_text": False
+        }
+    }
+    response = requests.post(HF_API_URL, headers=HF_HEADERS, json=payload, timeout=60)
+    if response.status_code != 200:
+        logger.error("Hugging Face API error: %s - %s", response.status_code, response.text)
+        return "Failed to generate guide. Please try again later."
+    
+    result = response.json()
+    if isinstance(result, list) and len(result) > 0:
+        content = result[0].get("generated_text", "")
+    elif isinstance(result, dict):
+        content = result.get("generated_text", "")
+    else:
+        content = ""
+    
     if not content:
-        logger.error("Groq API returned empty content for title: %s", title)
+        logger.error("Hugging Face API returned empty content for title: %s", title)
         return "Failed to generate guide. Please try again later."
     return content
 
@@ -73,7 +90,7 @@ async def generate_guide(title: str) -> str:
     try:
         return await asyncio.to_thread(_generate_guide_sync, title)
     except Exception as exc:
-        logger.exception("Groq API error: %s", exc)
+        logger.exception("Hugging Face API error: %s", exc)
         return "Error generating guide. Please try again later."
 
 # ===================== ACCESS CONTROL =====================
