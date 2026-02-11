@@ -18,13 +18,14 @@ from telegram.ext import (
 # ===================== SETTINGS =====================
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-HF_TOKEN = os.getenv("HF_TOKEN")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct")
 CHANNEL_ID = os.getenv("CHANNEL_ID")
 
 if not BOT_TOKEN:
     raise RuntimeError("Missing BOT_TOKEN environment variable")
-if not HF_TOKEN:
-    raise RuntimeError("Missing HF_TOKEN environment variable")
+if not OPENROUTER_API_KEY:
+    raise RuntimeError("Missing OPENROUTER_API_KEY environment variable")
 if not CHANNEL_ID:
     raise RuntimeError("Missing CHANNEL_ID environment variable")
 
@@ -33,12 +34,11 @@ CHANNEL_ID_INT = int(CHANNEL_ID)
 # Database (simple in-memory)
 GUIDES_DB: Dict[str, Dict] = {}
 
-# Hugging Face API settings (2026 Router)
-HF_API_URL = "https://router.huggingface.co/hf-inference/models/meta-llama/Llama-3.3-70B-Instruct"
-HF_HEADERS = {
-    "Authorization": f"Bearer {HF_TOKEN}",
+# OpenRouter API settings
+OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
+OPENROUTER_HEADERS = {
+    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
     "Content-Type": "application/json",
-    "X-Wait-For-Model": "true"
 }
 
 # Logging
@@ -64,34 +64,27 @@ def _build_prompt(title: str) -> str:
 def _generate_guide_sync(title: str) -> str:
     prompt = _build_prompt(title)
     payload = {
-        "model": "meta-llama/Llama-3.3-70B-Instruct",
+        "model": OPENROUTER_MODEL,
         "messages": [
             {"role": "system", "content": "You are a professional IT support specialist."},
             {"role": "user", "content": prompt}
         ],
-        "parameters": {
-            "max_new_tokens": 1000,
-            "temperature": 0.4
-        }
+        "max_tokens": 1000,
+        "temperature": 0.4,
     }
     
     try:
-        response = requests.post(HF_API_URL, headers=HF_HEADERS, json=payload, timeout=60)
-        
-        if response.status_code == 410:
-            return "Critical Error: The API endpoint is retired. Please update to router.huggingface.co."
+        response = requests.post(OPENROUTER_API_URL, headers=OPENROUTER_HEADERS, json=payload, timeout=60)
         
         if response.status_code != 200:
-            logger.error("Hugging Face API error: %s - %s", response.status_code, response.text)
+            logger.error("OpenRouter API error: %s - %s", response.status_code, response.text)
             return f"Failed to generate guide (Error {response.status_code})."
         
         result = response.json()
         try:
-            if "choices" in result:
+            if "choices" in result and result["choices"]:
                 return result["choices"][0]["message"]["content"]
-            elif isinstance(result, list):
-                return result[0].get("generated_text", "")
-            return result.get("generated_text", "Format error")
+            return "Format error"
         except Exception:
             return "Error parsing AI response."
     
@@ -103,7 +96,7 @@ async def generate_guide(title: str) -> str:
     try:
         return await asyncio.to_thread(_generate_guide_sync, title)
     except Exception as exc:
-        logger.exception("Hugging Face API error: %s", exc)
+        logger.exception("OpenRouter API error: %s", exc)
         return "Error generating guide. Please try again later."
 
 # ===================== ACCESS CONTROL =====================
