@@ -54,9 +54,20 @@ def _build_prompt(title: str) -> str:
     return (
         "You are an expert IT support specialist writing internal help guides for a "
         "busy hotel/company IT team. Create a professional, step-by-step guide in "
-        "clear, concise language. Use numbered steps. Include a short overview, "
-        "prerequisites, and a brief troubleshooting section. Keep it practical and "
-        "actionable for staff. Title: "
+        "clear, concise language. Use numbered steps. Keep it practical and "
+        "actionable for staff. Format the response EXACTLY like this:\n\n"
+        "Title: <title text>\n\n"
+        "Step 1: <instruction>\n"
+        "Image (optional): <describe image or write N/A>\n"
+        "--------------------\n"
+        "Step 2: <instruction>\n"
+        "Image (optional): <describe image or write N/A>\n"
+        "--------------------\n"
+        "Step 3: <instruction>\n"
+        "Image (optional): <describe image or write N/A>\n"
+        "--------------------\n"
+        "... continue as needed. Do not add overview, prerequisites, or troubleshooting. "
+        "Title: "
         f"{title}"
     )
 
