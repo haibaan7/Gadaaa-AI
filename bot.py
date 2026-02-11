@@ -18,14 +18,14 @@ from telegram.ext import (
 # ===================== SETTINGS =====================
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY") or os.getenv("SK_TOKEN")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct")
 CHANNEL_ID = os.getenv("CHANNEL_ID")
 
 if not BOT_TOKEN:
     raise RuntimeError("Missing BOT_TOKEN environment variable")
 if not OPENROUTER_API_KEY:
-    raise RuntimeError("Missing OPENROUTER_API_KEY environment variable")
+    raise RuntimeError("Missing OPENROUTER_API_KEY (or SK_TOKEN) environment variable")
 if not CHANNEL_ID:
     raise RuntimeError("Missing CHANNEL_ID environment variable")
 
